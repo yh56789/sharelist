@@ -5,13 +5,13 @@ const headers = {
   'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.167 Safari/537.36'
 }
 
-const PROXY_URL = ''//http://127.0.0.1:10080'
+const PROXY_URL = ''//'http://127.0.0.1:1080'
 const http = (opts, ...rest) => {
   if (PROXY_URL) opts.proxy = PROXY_URL
   if (opts.async) {
     return new Promise(function(resolve, reject) {
       request(opts, function(error, response, body) {
-        if (!error && response.statusCode == 200) {
+        if (!error) {
           resolve(response)
         } else {
           reject(error || response);
@@ -71,11 +71,11 @@ http.get = (url, opts = {}) => {
   })
 }
 
-http.post = (url, form, opts) => {
+http.post = (url, form = {}, opts = {}) => {
   let params = { ...opts }
   params.headers = Object.assign({}, headers, params.headers || {})
   params.url = url
-  if (opts.is_body) {
+  if (opts.is_body || opts.body === true) {
     params.body = form
   } else if (opts.isFormData) {
     params.formData = form

@@ -7,7 +7,7 @@ const name = 'OneDrive'
 
 const version = '1.0'
 
-const protocols = ['od', 'onedrive']
+const protocols = ['od']
 
 const defaultProtocol = 'od'
 
@@ -191,5 +191,5 @@ module.exports = ({ request , cache , getConfig , querystring , datetime }) => {
     return hit || ''
   }
 
-  return { name, version, drive:{protocols, folder, file} }
+  return { name, label:'OD ID挂载版', version, drive:{protocols, folder, file} }
 }
