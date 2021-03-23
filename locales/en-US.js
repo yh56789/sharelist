@@ -27,9 +27,21 @@ module.exports = {
   "readme_enable":"Display README content",
   "max_age_dir":"Folder max age(second)",
   "max_age_file":"File max age(second)",
+  "max_age_download":"Download link max age(second)",
+  "max_age_download_placeholder":"0 for permanent",
+  "anonymous_uplod_enable":"Allow anonymous upload",
   "virtual_path":"Virtual path",
   "general":"General",
   "webdav_path":"WebDAV Path",
   "ignore_file_extensions":"Ignore File Extensions",
-  "ignore_file_extensions_placeholder":"e.g. docx,pptx"
+  "ignore_file_extensions_placeholder":"e.g. docx,pptx",
+  "ignore_paths":"Ignore Path",
+  "ignore_paths_placeholder":"e.g. /a,/b/c",
+  "plugin_option":"Plugin Option",
+  "custom_style":"Custom Style",
+  "custom_script":"Custom Script",
+  "reboot":"Reboot",
+  "proxy_paths":"Proxy Paths",
+  "proxy_server":"Proxy Server",
+  "proxy_server_placeholder":""
 }

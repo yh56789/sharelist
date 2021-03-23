@@ -85,7 +85,7 @@ const getFileSize = async (url , headers) => {
     return null
   }
 }
-const sendHTTPFile = async (ctx , url  ,data) => {
+const sendHTTPFile = async (ctx , url  ,data = {}) => {
   let headers = data.headers || {}
 
   headers = mergeHeaders(ctx.req.headers , headers)
@@ -98,7 +98,6 @@ const sendHTTPFile = async (ctx , url  ,data) => {
     let range = ctx.get('range')
     let fileSize = data.size
     let chunksize = fileSize
-
     if(range){
       let [start , end] = getRange(ctx.header.range , fileSize)
       ctx.set('Content-Range', 'bytes ' + `${start}-${end}/${fileSize}`)
@@ -107,13 +106,28 @@ const sendHTTPFile = async (ctx , url  ,data) => {
       chunksize = end - start + 1
     }else{
       ctx.set('Content-Range', 'bytes ' + `0-${fileSize-1}/${fileSize}`)
+      ctx.status = 206
     }
     ctx.length = chunksize
   }
 
-  // console.log(headers)
-  // console.log('>>>>>',headers , url , data)
-  ctx.body = ctx.req.pipe(http({url , headers})) //.pipe(ctx.res)
+  let extra = data.proxy_options || {}
+  if(data.proxy_headers){
+    for(let i in data.proxy_headers){
+      headers[i] = data.proxy_headers[i]
+    }
+  }
+
+  let stream = http({url , headers , ...extra})
+  stream.on('response', function(response) {
+    ctx.status = response.statusCode
+    if(response.headers){
+      for(let i in response.headers)
+      ctx.set(i , response.headers[i])
+    }
+    //console.log(response.headers['content-type']) // 'image/png'
+  })
+  ctx.body = stream //.pipe(ctx.res)
 }
 
 const getFile = async (url) => {

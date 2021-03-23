@@ -13,7 +13,7 @@ const protocols = ['odb']
 const defaultProtocol = 'odb'
 
 
-module.exports = ({ request, cache, getConfig }) => {
+module.exports = ({ request, cache, getConfig , datetime }) => {
 
   const clientMap = {}
 
@@ -54,7 +54,6 @@ module.exports = ({ request, cache, getConfig }) => {
 
   // folder => files
   const folder = async (id) => {
-
     const resid = `${defaultProtocol}:${id}`
 
     let resp = { id, type: 'folder', protocol: defaultProtocol }
@@ -80,12 +79,15 @@ module.exports = ({ request, cache, getConfig }) => {
     const [cookie, directUrl] = await getClient(rootId)
 
 
-    let url = baseUrl + encodeURI(path)
-
-    if (directUrl) {
-      url = baseUrl + directUrl.replace(baseUrl,'')
+    let url
+    if( path ){
+      url = baseUrl + encodeURI(path)
+    }else{
+      if (directUrl) {
+        url = baseUrl + directUrl.replace(baseUrl,'')
+      }
     }
-
+    
     let res = await request.get(url, { headers: { 'Cookie': cookie } })
     let code = (res.body.match(/g_listData\s*=\s*([\w\W]+)(?=;if)/) || ['', ''])[1]
     let data = code.toString(16)
@@ -99,6 +101,7 @@ module.exports = ({ request, cache, getConfig }) => {
         data = []
       }
     }
+    console.log('result',data )
 
     let children = data ? data.map((i) => {
       return {
@@ -107,12 +110,12 @@ module.exports = ({ request, cache, getConfig }) => {
         ext: i['.fileType'],
         protocol: defaultProtocol,
         created_at: '-',
-        updated_at: i.Modified,
+        // ref. https://www.liuquanhao.com/memory/2020/01/19/ShareList-OneDrive%E6%8F%92%E4%BB%B6bug%E4%BF%AE%E5%A4%8D.html
+        updated_at: datetime(i['Modified.'].replace(/\//g,'-')),
         size: i.FileSizeDisplay,
         type: i.FSObjType == '1' ? 'folder' : undefined,
       }
     }) : []
-
 
     //folder 额外保存 
     resp.children = children
@@ -143,5 +146,5 @@ module.exports = ({ request, cache, getConfig }) => {
     }
   }
 
-  return { name, version, drive: { protocols, folder, file } }
+  return { name, label:'* OD Business 非API', version, drive: { protocols, folder, file } }
 }

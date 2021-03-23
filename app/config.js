@@ -18,6 +18,8 @@ const db = createFiledb(configPath , {raw:true} , {
   //外链 10分钟
   max_age_file: 5 * 60 * 1000,
 
+  max_age_download:0,
+
   skin:'default',
 
   //忽略文件（扩展名）
@@ -25,7 +27,26 @@ const db = createFiledb(configPath , {raw:true} , {
 
   ignore_files:'.passwd',
 
-  readme_enable:1
+  readme_enable:1,
+
+  ignore_paths:{
+    '__root__':['/readme.md']
+  },
+
+  max_age_download_sign:'sl_'+Date.now(),
+
+  anonymous_uplod_enable:0,
+
+  plugin_option:[],
+
+  custom_style:'',
+
+  custom_script:'',
+
+  //代理路径
+  proxy_paths:[],
+
+  proxy_server:'',
 });
 
 if(process.env.PORT){
@@ -40,6 +61,17 @@ const installed = () => {
 
 const getConfig = (key) => db.get(key)
 
+const setIgnorePaths = (key , paths) => {
+  let p = db.get('ignore_paths')
+  p[key]  = paths
+  db.save()
+}
+
+const getIgnorePaths = (key , paths) => {
+  return [].concat(...Object.values(db.get('ignore_paths') || {}))
+}
+
+
 const getAllConfig = (key) => db.all
 
 const getPath = () => [].concat( db.get('path') || [] )
@@ -50,6 +82,23 @@ const getRuntime = (key) => {
 
 const getSkin = (key) => {
   return db.get('skin') || 'default'
+}
+
+const getPluginOption = (key) => {
+  let p = db.get('plugin_option') || []
+  let hit = p.find(i => i.key == key )
+  return hit ? hit.value : null
+}
+
+const setPluginOption = (key , value) => {
+  let p = db.get('plugin_option') || []
+  let hit = p.find(i => i.key == key )
+  if( hit ){
+    hit.value = value
+  }else{
+    p.push({ key , value})
+  }
+  db.save()
 }
 
 const setRuntime = (key , value) => {
@@ -63,7 +112,7 @@ const saveDrive = (value , name) => {
   let hit = path.find( i => i.name == name)
   if(hit){
     hit.path = value
-    db.save(path)
+    db.save()
   }
 }
 
@@ -82,7 +131,6 @@ const getDrive = () => {
 //获取使用特定协议的drive
 const getDrives = (protocols) => {
   const path = getPath()
-  const path = getPath()
   let ret = path.filter(i => protocols.includes(i.path.split(':')[0]))
   // issue:68
   // 如果只有一个目录则直接列出，导致挂载路径不一致 更新失败。
@@ -94,4 +142,8 @@ const getDrives = (protocols) => {
   return ret
 }
 
-module.exports = { getConfig , getAllConfig, save , installed , getPath , setRuntime , getRuntime , saveDrive , getDrive , getSkin , getDrives }
+const checkAccess = (token) => {
+  return token === db.get('token')
+}
+
+module.exports = { getConfig, setIgnorePaths, getIgnorePaths, getAllConfig, save , installed , getPath , setRuntime , getRuntime , saveDrive , getDrive , getSkin , getDrives , getPluginOption , setPluginOption , checkAccess }

@@ -97,7 +97,7 @@ module.exports = ({ request , getConfig , datetime , cache , wrapReadableStream 
   /**
    * 获取文件实际路径
    */
-  const file = async(id , { data = {} , requireSize = false } = {}) =>{
+  const file = async(id , { data = {} , req , requireSize = false } = {}) =>{
     if(
       data && 
       data.$cached_at && 
@@ -111,6 +111,9 @@ module.exports = ({ request , getConfig , datetime , cache , wrapReadableStream 
 
     if( requireSize && !data.size ){
       let resp = await request.get(`${host}/file/d/${id}/view`)
+      data.name = (resp.body.match(/<meta\s+property="og:title"\s+content="([^"]+)"/) || ['',''])[1]
+      data.ext = (data.name.match(/\.([0-9a-z]+)$/) || ['',''])[1]
+
       if(resp.body.indexOf('errorMessage') == -1 ) {
         let code = (resp.body.match(/viewerData\s*=\s*(\{[\w\W]+?\});<\/script>/) || ['',''])[1]
         let preview_url = ''
@@ -137,26 +140,53 @@ module.exports = ({ request , getConfig , datetime , cache , wrapReadableStream 
       }
     }
 
-    let downloadUrl = ''
     let { body , headers }  = await request.get(host + '/uc?id='+id+'&export=download',{followRedirect : false})
     if(headers && headers.location){
-      downloadUrl = headers.location
+      data.url = headers.location
     }else{
-      if(body && body.indexOf('Too many users') == -1){
-        let url = (body.match(/\/uc\?export=download[^"']+/i) || [''])[0]
+      if(body && body.indexOf('uc-error-subcaption') == -1){
+
         let cookie = headers['set-cookie'].join('; ')
+        let url =  (body.match(/\/uc\?export=download[^"']+/i) || [''])[0]
+
+        // stage 1 : confirm 
+        // https://drive.google.com/uc?export=download&confirm=xxxx
         let resp = await request.get(host + url.replace(/&amp;/g,'&') , {headers:{'Cookie':cookie} , followRedirect : false})
-        if(resp.headers && resp.headers.location){
-          downloadUrl = resp.headers.location
+        url = resp.headers.location
+
+        // stage 2 download link without nonce
+        // https://xxxx.googleusercontent.com/docs/securesc/xxxx?e=download
+        resp = await request.get(url , {followRedirect : false})
+        let cookie_guc = resp.headers['set-cookie'].join('; ')
+
+        url = resp.headers.location
+
+        // stage 3 nonceSigner
+        // https://docs.google.com/nonceSigner?nonce=xxxx&continue=xxxx
+        resp = await request.get(url , {headers:{'Cookie':cookie} , followRedirect : false})
+        url = resp.headers.location
+
+        // stage 4 
+        // https://xxxx.googleusercontent.com/docs/securesc/xxxx?e=download&nonce=xxxx
+        data.url = url
+
+        data.headers = { cookie: cookie_guc }
+
+        data.proxy = true
+
+      }else{
+        return {
+          ...data,
+          type:'body',
+          body:'Too many users'
         }
       }
     }
 
-    data.url = downloadUrl
     data.$cached_at = Date.now()
 
     //强制保存 ， data 是指向 父级 的引用
-    let resid = `${defaultProtocol}:${data.parent}`
+    //let resid = `${defaultProtocol}:${data.parent}`
     // cache.save()
     return data
   }
@@ -171,5 +201,5 @@ module.exports = ({ request , getConfig , datetime , cache , wrapReadableStream 
     }
   }
 
-  return { name , version, drive:{ protocols, folder , file , createReadStream } }
+  return { name ,label:'GD ID挂载版', version, drive:{ protocols, folder , file , createReadStream } }
 }

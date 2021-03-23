@@ -2,18 +2,19 @@ const Koa = require('koa')
 const views = require('koa-views')
 const json = require('koa-json')
 const onerror = require('koa-onerror')
-const bodyparser = require('koa-bodyparser')
+const koaBody = require('koa-body')
 const logger = require('koa-logger')
 const koaStatic = require('koa-static')
 const locales = require('koa-locales')
 const i18n = require('koa-i18n')
 const path = require('path')
 const session = require('koa-session-minimal')
-
+const os = require('os')
 const less = require('./middleware/koa-less')
 const addr = require('./middleware/koa-addr')
 const paths = require('./middleware/koa-paths')
 const render = require('./middleware/koa-render')
+const staticCache = require('koa-static-cache')
 
 const routers = require('./routers/index')
 const cors = require('@koa/cors')
@@ -26,13 +27,13 @@ const pluginLoad = require('./services/plugin').load
 const app = new Koa()
 app.proxy = true
 pluginLoad({
-  dirs: [__dirname + '/plugins',path.resolve('plugins')],
+  dirs: [__dirname + '/plugins',path.resolve(__dirname,'../plugins')],
 })
 
 onerror(app)
 
 locales(app, {
-  dirs: [path.resolve('locales')],
+  dirs: [path.resolve(__dirname,'../locales')],
   defaultLocale: 'zh-CN'
 })
 
@@ -42,9 +43,7 @@ app.use(session({
 
 app.use(cors())
 
-app.use(bodyparser({
-  enableTypes:['json', 'form', 'text' , 'xml']
-}))
+app.use(koaBody())
 
 app.use(json())
 
@@ -58,10 +57,12 @@ app.use(render)
 app.use(logger())
 
 //less 中间件
-app.use(less(__dirname + '/public'))
+app.use(less(__dirname + '/public' , { dest: os.tmpdir() + '/sharelist'}))
+
 
 // 配置静态资源加载中间件
-app.use(koaStatic(__dirname + '/public'))
+app.use(staticCache(__dirname + '/public' , {maxage:30 * 24 * 60 * 60 }))
+app.use(staticCache(os.tmpdir()+'/sharelist' , {maxage:30 * 24 * 60 * 60 , dynamic:true}))
 
 app.use(async (ctx , next) => {
   ctx.state.__ = ctx.__.bind(ctx)

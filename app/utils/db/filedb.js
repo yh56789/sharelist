@@ -15,12 +15,27 @@ const base64 = {
   decode: (v) => Buffer.from(v, 'base64').toString()
 }
 
+const merge = function(dst , src) {
+  for (let key in src) {
+    if (!(key in dst)) {
+      dst[key] = src[key];
+      continue;
+    }else{
+      if (typeof src[key] == 'object' || Array.isArray(src[key])) {
+        merge(dst[key], src[key]);
+      }else{
+        dst[key] = src[key]
+      }
+    }
+  }
+  return dst
+}
+
 class Filedb {
   constructor(path, options = { raw: false }, defaults = {}) {
     this.path = path
-    this.options = Object.assign({}, options);
-
-    this.data = Object.assign({}, defaults, this.all);
+    this.options = Object.assign({}, options)
+    this.data = merge(defaults , this.all)
   }
 
   get all() {
@@ -82,11 +97,11 @@ class Filedb {
         ret = data[ret]
       }
 
-      if(chain){
-        if( typeof ret == 'object'){
+      if (chain) {
+        if (typeof ret == 'object') {
           return ret
         }
-      }else{
+      } else {
         return ret
       }
     }
@@ -101,7 +116,7 @@ class Filedb {
       this.data[key] = value;
     }
 
-    setImmediate(()=>{
+    setImmediate(() => {
       this.save()
     })
   }

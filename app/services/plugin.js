@@ -8,7 +8,8 @@ const http = require('../utils/http')
 const config = require('../config')
 const { sendFile , sendHTTPFile ,sendStream, getFile, getHTTPFile } = require('../utils/sendfile')
 const wrapReadableStream = require('../utils/wrapReadableStream')
-
+const rectifier = require ('../utils/rectifier')
+const chunkStream = require('../utils/chunkStream')
 
 const assign = (...rest) => Object.assign(...rest)
 
@@ -95,7 +96,6 @@ const getStream = async (ctx , id ,type, protocol , data) => {
 const getPreview = async (data) => {
   let ext = data.ext
   let name = previewMap.get(ext)
-  console.log(resources[name].preview[ext])
   return name ? await resources[name].preview[ext](data , config.getRuntime('req')) : null
 }
 
@@ -110,6 +110,9 @@ const sandboxCache = (id) => {
     },
     set(key , ...rest){
       cache.set(`@${id}_${key}` , ...rest)
+    },
+    clear(key , ...rest){
+      cache.clear(`@${id}_${key}`,...rest)
     }
   }
 }
@@ -125,6 +128,7 @@ const getHelpers = (id) => {
     cache:sandboxCache(id),
     getSource: getSource,
     getConfig : config.getConfig,
+    setIgnorePaths : config.setIgnorePaths,
     getRandomIP:getRandomIP,
     retrieveSize : format.retrieveByte,
     byte:format.byte,
@@ -140,6 +144,19 @@ const getHelpers = (id) => {
     pathNormalize,
     command,
     wrapReadableStream,
+    rectifier,
+    chunkStream,
+    getOption:()=>{
+
+    },
+    getPluginOption:(key)=>{
+      let p = id + '___' + key
+      return config.getPluginOption(p)
+    },
+    setPluginOption:(key , value)=>{
+      let p = id + '___' + key
+      config.setPluginOption(p , value)
+    },
     saveDrive : (path , name) => {
       let resource = resources[id]
       if( resource && resource.drive && resource.drive.protocols){
@@ -164,7 +181,9 @@ const getHelpers = (id) => {
 /**
  * 加载插件
  */
+var loadOptions = []
 const load = (options) => {
+  loadOptions = options
   const dir = options.dir
   const dirs = options.dirs
 
@@ -190,7 +209,7 @@ const load = (options) => {
 
         const pluginName = name.split('.').slice(0,-1).join('.')
         const type = name.split('.')[0]
-        const id = 'plugin_' + pluginName
+        const id = 'plugin_' + pluginName.replace(/\./g,'_')
         const helpers = getHelpers(id)
         const resource = require(filepath).call(helpers,helpers)
 
@@ -253,6 +272,9 @@ const load = (options) => {
   ready = true
 }
 
+const reload = () => {
+  load(loadOptions)
+}
 /**
  * 根据扩展名获取可处理的驱动
  */
@@ -278,7 +300,6 @@ const updateFile = async (file) => {
   if(file.type != 'folder'){
     file.type = getFileType(file.ext)
   }
-
   file.displaySize = format.byte(file.size)
 
   
@@ -337,12 +358,11 @@ const updateFolder = (folder) => {
         d.size = null
       }
     }
-
     if(d.type != 'folder'){
       d.type = getFileType(d.ext)
       if(!d.mime) d.mime = getMIME(d.ext) || 'file/unknow'
     }
-
+  
     d.displaySize = format.byte(d.size)
     d.$ = index
 
@@ -402,6 +422,7 @@ const parseLnk = (content) => {
 const getVendors = () => [...new Set(driveMountableMap.values())].map(id => {
   return {
     name : resources[id].name,
+    label: resources[id].label || resources[id].name,
     protocol : resources[id].drive.protocols[0]
   }
 })
@@ -443,4 +464,4 @@ const createWriteStream = async (options) => {
   }
 }
 
-module.exports = { load , getDrive , getStream , getSource , updateFolder , updateFile , updateLnk , getVendors , getAuth , getPreview , isPreviewable , command}
+module.exports = { load , reload , getDrive , getStream , getSource , updateFolder , updateFile , updateLnk , getVendors , getAuth , getPreview , isPreviewable , command}

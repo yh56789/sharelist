@@ -22,18 +22,23 @@ const l2w = (p) => p.replace(/^\/([^\/]+?)/,'$1:\\').replace(/\//g,'\\').replace
 
 const realpath = (p) => (isWinOS ? l2w(p) : p)
 
-const normalize = (p) => p.replace(/\/{2,}/g,'/').replace(/(?<=.+)\/+$/,'')
-
 module.exports = ({datetime , extname , pathNormalize}) => {
 
-  const folder = async(id) => {
-    let dir = normalize(id) , resp = { id : dir , type:'folder', protocol:defaultProtocol}
+  const normalize = (p) => pathNormalize(p).replace(/^\.\//,process.cwd()+'/')
+
+  const folder = async(id , {_path=[]} = {}) => {
+    let dir = normalize(id)
+    if( _path.length > 0) {
+      dir = _path.length.join('/')
+    }
+
+    let resp = { id : dir , type:'folder', protocol:defaultProtocol}
     let realdir = realpath(dir)
     if( fs.existsSync(realdir) ){
       let children = []
 
       fs.readdirSync(realdir).forEach(function(filename){
-        let path = normalize(dir + '/' + filename)
+        let path = normalize(dir) + '/' + filename
         let stat
         try{
           stat = fs.statSync(realpath(path))
@@ -59,7 +64,6 @@ module.exports = ({datetime , extname , pathNormalize}) => {
         }
         children.push(obj)
       })
-
       resp.children = children
       return resp
     }else{
@@ -87,7 +91,7 @@ module.exports = ({datetime , extname , pathNormalize}) => {
   }
 
   const createReadStream = ({id , options = {}} = {}) => {
-    return fs.createReadStream(realpath(id) , options)
+    return fs.createReadStream(realpath(id) , {...options,highWaterMark:64*1024})
   }
 
   const mkdir = (p) => {
@@ -105,5 +109,5 @@ module.exports = ({datetime , extname , pathNormalize}) => {
     return fs.createWriteStream(realpath(fullpath) , options)
   }
 
-  return { name , version , drive:{ protocols , folder , file , createReadStream , createWriteStream } }
+  return { name , label:'本地文件',version , drive:{ protocols , folder , file , cache:false , createReadStream , createWriteStream } }
 }

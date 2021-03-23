@@ -2,7 +2,7 @@ const base = require('../utils/base')
 const request = require('request')
 const config = require('../config')
 const cache = require('../utils/cache')
-const { getVendors } = require('../services/plugin')
+const { getVendors , reload } = require('../services/plugin')
 const service = require('../services/sharelist')
 
 const handlers = async (a, body) => {
@@ -27,6 +27,17 @@ const handlers = async (a, body) => {
     } else {
       result.message = 'Invalid Arguments'
     }
+  } else if(a == 'plugin_option'){
+    console.log(body)
+    for(let i in body){
+      if(i!=='a'){
+        let value = config.getPluginOption(i)
+        console.log(value)
+        value.value = body[i]
+        config.setPluginOption(i , value)
+      }
+    }
+
   } else if (a == 'token') {
     let newtoken = body.token
     if (newtoken) {
@@ -37,6 +48,9 @@ const handlers = async (a, body) => {
       result.status = -1
       result.message = 'Invalid password'
     }
+  } else if(a == 'reboot'){
+    reload()
+    result.message = 'Success'
   } else if (a == 'title') {
     let title = body.title
     if (title) {
@@ -50,7 +64,7 @@ const handlers = async (a, body) => {
     cache.clear()
     result.message = 'Success'
   } else if (a == 'cfg') {
-    let { proxy_enable, preview_enable, readme_enable, max_age_dir, max_age_file, webdav_path, ignore_file_extensions } = body
+    let { proxy_enable, preview_enable, readme_enable, max_age_dir, max_age_file,max_age_download, webdav_path, anonymous_uplod_enable, ignore_file_extensions , ignore_paths , custom_style , custom_script , proxy_paths , proxy_server } = body
     let opts = {}
     if (max_age_dir !== undefined) {
       max_age_dir = parseInt(max_age_dir)
@@ -63,6 +77,13 @@ const handlers = async (a, body) => {
       max_age_file = parseInt(max_age_file)
       if (!isNaN(max_age_file)) {
         opts.max_age_file = max_age_file * 1000
+      }
+    }
+
+    if (max_age_download) {
+      max_age_download = parseInt(max_age_download)
+      if (!isNaN(max_age_download)) {
+        opts.max_age_download = max_age_download * 1000
       }
     }
 
@@ -81,12 +102,21 @@ const handlers = async (a, body) => {
       opts.readme_enable = readme_enable
     }
 
+    if (anonymous_uplod_enable) {
+      anonymous_uplod_enable = anonymous_uplod_enable == '1' ? 1 : 0
+      opts.anonymous_uplod_enable = anonymous_uplod_enable
+    }
+    
     if (webdav_path) {
       opts.webdav_path = webdav_path
     }
-
+    opts.custom_script = custom_script
+    opts.custom_style = custom_style
+    opts.ignore_paths = config.getConfig('ignore_paths')
     opts.ignore_file_extensions = ignore_file_extensions
-
+    opts.ignore_paths.__root__ = ignore_paths.split(',')
+    opts.proxy_paths = proxy_paths.split(',')
+    opts.proxy_server = proxy_server
     await config.save(opts)
     result.message = 'Success'
   }
